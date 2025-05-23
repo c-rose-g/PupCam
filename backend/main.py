@@ -15,4 +15,4 @@ app.include_router(event_router)
 
 @app.get("/")
 async def root():
-    return {"message:": "Welcome to the PupCam backend server"}
+    return {"message:": "Welcome to the PupCam backend server. Please use the http://127.0.0.1:8000/docs endpoint to see the API documentation."}
