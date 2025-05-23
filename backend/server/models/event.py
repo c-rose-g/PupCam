@@ -13,6 +13,7 @@ class Event(TimeStamp):
     """
     Event model for storing motion detection events in the database.
     """
+    id: Optional[str] = Field(default=None, alias="_id")
     event_type: str
     image_url: str
     video_url: str
