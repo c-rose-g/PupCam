@@ -1,0 +1,5 @@
+venv/
+/Notes.md
+/node_modules
+.env
+schema.md
