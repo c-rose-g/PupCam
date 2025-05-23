@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Literal
 from beanie import Document
-from pydantic import Field, ConfigDict
+from pydantic import Field, ConfigDict, field_validator
 from bson import ObjectId
 
 
@@ -13,19 +13,34 @@ class TimeStamp(Document):
 class Event(TimeStamp):
     """
     Event model for storing motion detection events in the database.
+
+    I'll use Literal type for event_type for now, but may change to enum later if I have more different values to represent.
+    Literal type has a built-in validator
     """
-    id: str = Field(default=None, alias="_id")
-    event_type: str
+    event_type: Literal["motion", "sound"]
     image_url: str
     video_url: str
 
+    @field_validator("image_url")
+    @classmethod
+    def validate_image_url(cls, value):
+        if not value.startswith("https://"):
+            raise ValueError("Image URL must start with 'https://'")
+        return value
+
+    @field_validator("video_url")
+    @classmethod
+    def validate_video_url(cls, value):
+        if not value.startswith("https://"):
+            raise ValueError("Video URL must start with 'https://'")
+        return value
     class Settings:
         name = "event_collection"
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         json_encoders={ObjectId: str},
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "event_type": "motion",
                 "image_url": "https://example.com/image.jpg",
