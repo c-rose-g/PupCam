@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
-
-from beanie import Document, before_event, Insert
-from pydantic import BaseModel, Field
 from typing import Optional
+from beanie import Document
+from pydantic import Field, ConfigDict
+from bson import ObjectId
+
 
 class TimeStamp(Document):
     created_at: datetime = Field(
@@ -21,7 +22,9 @@ class Event(TimeStamp):
     class Settings:
         name = "event_collection"
 
-    class Config:
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str},
         schema_extra = {
             "example": {
                 "event_type": "motion",
@@ -30,3 +33,4 @@ class Event(TimeStamp):
                 "created_at": datetime.now()
             }
         }
+        )
