@@ -3,3 +3,5 @@ venv/
 /node_modules
 .env
 schema.md
+pupcamenv/
+pythonvm/
