@@ -11,7 +11,7 @@ class TimeStamp(Document):
 
 class Event(TimeStamp):
     """
-    Event model for storing events in the database.
+    Event model for storing motion detection events in the database.
     """
     event_type: str
     image_url: str
