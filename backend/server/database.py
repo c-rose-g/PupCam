@@ -5,7 +5,7 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from server.models.event import Event
-# from server.models.user import User
+from server.models.user import User
 # from server.models.camera import Camera
 
 env_path = Path(__file__).resolve().parents[1].parents[0].parents[0] / "PupCam/.env"
@@ -27,7 +27,7 @@ async def init_db():
 
     # add the rest of the models here
     try:
-        await init_beanie(database=db, document_models=[Event])
+        await init_beanie(database=db, document_models=[Event, User])
 
     except Exception as e:
         print("Beanie init failed:        ", e)
