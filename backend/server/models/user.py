@@ -11,10 +11,10 @@ class User(Document):
     # serial_number: str (for later)
     # registered_at: datetime = Field(default=datetime.now(timezone.utc)) make sure this doesn't change
     # limit number of failed login attempts on a single account to prevent brute-force attacks
-            # allow users to past passwords from a password manager
-            # salt and hash password (do I do this here?)
-            # verify passwords against known compromised or weak password lists (how do I do that?)
-            # enforce MFA or authentication (for later)
+    # allow users to past passwords from a password manager
+    # salt and hash password (do I do this here?)
+    # verify passwords against known compromised or weak password lists (how do I do that?)
+    # enforce MFA or authentication (for later)
     """
     email: EmailStr
     name: str
@@ -64,3 +64,6 @@ class User(Document):
             }
         }
     )
+
+class UserInDB(User):
+    hashed_password: str
