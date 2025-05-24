@@ -34,13 +34,14 @@ class Event(TimeStamp):
         if not value.startswith("https://"):
             raise ValueError("Video URL must start with 'https://'")
         return value
+
     class Settings:
         name = "event_collection"
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         json_encoders={ObjectId: str},
-        json_schema_extra = {
+        json_schema_extra={
             "example": {
                 "event_type": "motion",
                 "image_url": "https://example.com/image.jpg",
@@ -48,4 +49,4 @@ class Event(TimeStamp):
                 "created_at": datetime.now()
             }
         }
-        )
+    )
