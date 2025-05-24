@@ -1,18 +1,24 @@
+from datetime import datetime, timezone
+from typing import Optional
 from beanie import Document
 from pydantic import Field, ConfigDict, field_validator, EmailStr
 from bson import ObjectId
-from datetime import datetime, timezone
-from typing import Optional
 import re
-class TimeStamp(Document):
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc))
-class User(TimeStamp):
+
+class User(Document):
+    """
+    User model
+    # serial_number: str (for later)
+    # registered_at: datetime = Field(default=datetime.now(timezone.utc)) make sure this doesn't change
+    # limit number of failed login attempts on a single account to prevent brute-force attacks
+            # allow users to past passwords from a password manager
+            # salt and hash password (do I do this here?)
+            # verify passwords against known compromised or weak password lists (how do I do that?)
+            # enforce MFA or authentication (for later)
+    """
     email: EmailStr
     name: str
     hashed_password: str
-    # serial_number: str (for later)
-    # registered_at: datetime = Field(default=datetime.now(timezone.utc)) make sure this doesn't change
 
     @field_validator("email")
     @classmethod
@@ -26,23 +32,22 @@ class User(TimeStamp):
     @field_validator("hashed_password")
     @classmethod
     def validate_password(cls, value):
-        # password has to be at least 16 characters min and 64 characters max
+
         if len(value) < 16:
-            raise ValueError("Password must be at least 16 characters long.")
-        # discourage repetitive / sequential characters (but maybe stil allow it?)
+            raise ValueError(
+                "Password must be at least 16 characters long.")
+
         if not re.search(r"[a-z]", value):
-            raise ValueError("Password must contain at least one lowercase character.")
+            raise ValueError(
+                "Password must contain at least one lowercase character.")
         if not re.search(r"[A-Z]", value):
-            raise ValueError("Password must contain at least one uppercase character.")
+            raise ValueError(
+                "Password must contain at least one uppercase character.")
         if not re.search(r"[0-9]", value):
             raise ValueError("Password must contain at least one digit.")
         if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
-            raise ValueError("Password must contain at least one special character:!@#$%^&*(),.?\":{}|<>")
-            # limit number of failed login attempts on a single account to prevent brute-force attacks
-            # allow users to past passwords from a password manager
-            # salt and hash password (do I do this here?)
-            # verify passwords against known compromised or weak password lists (how do I do that?)
-            # enforce MFA or authentication (for later)
+            raise ValueError(
+                "Password must contain at least one special character:!@#$%^&*(),.?\":{}|<>")
         return value
 
     class Settings:
