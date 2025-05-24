@@ -3,23 +3,26 @@ from typing import Optional, Literal
 from beanie import Document
 from pydantic import Field, ConfigDict, field_validator
 from bson import ObjectId
-
+from server.models.user import User
 
 class TimeStamp(Document):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc))
 
 
-class Event(TimeStamp):
+class Event(TimeStamp, User):
     """
     Event model for storing motion detection events in the database.
 
     I'll use Literal type for event_type for now, but may change to enum later if I have more different values to represent.
     Literal type has a built-in validator
+    Create an compound index (id, user_id, created_at)
+    create partial index (id, created_at)
     """
     event_type: Literal["motion", "sound"]
     image_url: str
     video_url: str
+    user_id: str
 
     @field_validator("image_url")
     @classmethod
