@@ -12,4 +12,4 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     user = await User.find_one(User.email == email)
     if not user:
         raise HTTPException(status_code=401, detail="User not found. Invalid authentication credentials", headers={"WWW-Authenticate": "Bearer"})
-    return User
+    return user
