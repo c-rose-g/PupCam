@@ -1,29 +1,15 @@
-# Common dependencies (e.g. get_current_user)
-from server.models.user import UserInDB
-from typing import Annotated
-from beanie import PydanticObjectId
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from server.models.user import User
+from server.services.auth import decode_access_token
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
-
-def fake_decode_token(token):
-    # This doesn't provide any security at all
-    # Check the next version
-    user = get_user(PydanticObjectId, token)
-    return user
-
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
-    user = fake_decode_token(token)
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+    email = decode_access_token(token)
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = await User.find_one(User.email == email)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
+        raise HTTPException(status_code=401, detail="User not found. Invalid authentication credentials", headers={"WWW-Authenticate": "Bearer"})
+    return User
