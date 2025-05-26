@@ -6,6 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from server.models.device import Device
 from server.models.user import User
 from server.models.event import Event
+
 # from server.models.camera import Camera
 
 env_path = Path(__file__).resolve().parents[1].parents[0].parents[0] / "PupCam/.env"
