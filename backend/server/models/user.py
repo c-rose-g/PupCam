@@ -19,35 +19,15 @@ class User(Document):
     email: EmailStr
     name: str
     hashed_password: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_validator("email")
     @classmethod
     def validate_email(cls, value):
-        if not value.include("@"):
+        if "@" not in value:
             raise ValueError("Email must contain '@'.")
         if not value.empty():
             raise ValueError("Email field cannot be empty.")
-        return value
-
-    @field_validator("hashed_password")
-    @classmethod
-    def validate_password(cls, value):
-
-        if len(value) < 16:
-            raise ValueError(
-                "Password must be at least 16 characters long.")
-
-        if not re.search(r"[a-z]", value):
-            raise ValueError(
-                "Password must contain at least one lowercase character.")
-        if not re.search(r"[A-Z]", value):
-            raise ValueError(
-                "Password must contain at least one uppercase character.")
-        if not re.search(r"[0-9]", value):
-            raise ValueError("Password must contain at least one digit.")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
-            raise ValueError(
-                "Password must contain at least one special character:!@#$%^&*(),.?\":{}|<>")
         return value
 
     class Settings:
