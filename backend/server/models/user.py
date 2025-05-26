@@ -20,16 +20,7 @@ class User(Document):
     name: str
     hashed_password: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-    @field_validator("email")
-    @classmethod
-    def validate_email(cls, value):
-        if "@" not in value:
-            raise ValueError("Email must contain '@'.")
-        if not value.empty():
-            raise ValueError("Email field cannot be empty.")
-        return value
-
+    
     class Settings:
         name = "user_collection"
 
