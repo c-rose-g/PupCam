@@ -1,13 +1,19 @@
+# schemas/event.py
 # CreateEventRequest, EventResponse
-from pydantic import BaseModel
+from typing import Literal
+from pydantic import BaseModel, HttpUrl
 from datetime import datetime
 
 class EventCreate(BaseModel):
-  type: str
-  snapshot_url: str
+  event_type: Literal["motion","sound"]
+  image_url: HttpUrl
+  video_url: HttpUrl
 
 class EventResponse(BaseModel):
   id: str
-  type: str
-  timestamp: datetime
-  snapshot_url: str
+  event_type: Literal["motion","sound"]
+  image_url: HttpUrl
+  video_url: HttpUrl
+
+  class Config:
+    from_attributes = True
