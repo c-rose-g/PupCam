@@ -4,10 +4,10 @@ from beanie import Document, PydanticObjectId
 from pydantic import Field, ConfigDict, field_validator
 from bson import ObjectId
 from server.models.user import User  # do I import indexes too?
-from server.models.event import Event, TimeStamp
+from server.models.event import Event
 
 
-class Device(TimeStamp):  # do I add Events as well?
+class Device(Document):  # do I add Events as well?
     """
     Device schema
     how do i get location? do i event need it for mvp?
@@ -21,7 +21,8 @@ class Device(TimeStamp):  # do I add Events as well?
     quiet_hour_end: str  # end >= current_time
     schedule: Optional[Dict] = None
     bark_enabled: bool
-
+    created_at : datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
     @field_validator("quiet_hour_start", "quiet_hour_end")
     @classmethod
     def validate_hour_start(cls, value: str):
