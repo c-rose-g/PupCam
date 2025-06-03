@@ -16,7 +16,7 @@ class Event(Document):
     """
     event_type: Literal["motion", "sound"]
     image_url: HttpUrl
-    video_url: HttpUrl
+    video_url: str
     user_id: Optional[str] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     class Settings:
