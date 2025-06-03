@@ -1,8 +1,11 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
-import motor.motor_asyncio
-import gridfs
-from typing import List, Optional, Dict
-from beanie import PydanticObjectId
+from server.database import fs
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
+
+@router.post("/")
+async def upload_video(file: UploadFile = File(...)):
+    contents = await file.read()
+    file_id = await fs.upload_from_stream(file.filename, contents)
+    return JSONResponse({"video_url": str(file_id)})
