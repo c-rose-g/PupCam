@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from beanie import init_beanie
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 from server.models.device import Device
 from server.models.user import User
 from server.models.event import Event
@@ -27,7 +27,7 @@ async def init_db():
     global fs
     client = AsyncIOMotorClient(MONGO_URI)
     db = client[DB_NAME]
-    fs = gridfs.AsyncIOMotorGridFSBucket(db)
+    fs = AsyncIOMotorGridFSBucket(db)
     # add the rest of the models here
     try:
         await init_beanie(database=db, document_models=[Device, User, Event])
