@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from server.models.device import Device
 from server.models.user import User
 from server.models.event import Event
-
+import gridfs
 # from server.models.camera import Camera
 
 env_path = Path(__file__).resolve().parents[1].parents[0].parents[0] / "PupCam/.env"
@@ -14,6 +14,7 @@ env_path = Path(__file__).resolve().parents[1].parents[0].parents[0] / "PupCam/.
 load_dotenv(dotenv_path=env_path)
 DB_NAME = os.getenv("DB_NAME")
 MONGO_URI = os.getenv("MONGO_URI")
+fs = None
 
 if not MONGO_URI:
     raise ValueError("MONGO_URI is not set in env")
@@ -23,9 +24,10 @@ if not DB_NAME:
 
 
 async def init_db():
+    global fs
     client = AsyncIOMotorClient(MONGO_URI)
     db = client[DB_NAME]
-
+    fs = gridfs.AsyncIOMotorGridFSBucket(db)
     # add the rest of the models here
     try:
         await init_beanie(database=db, document_models=[Device, User, Event])
