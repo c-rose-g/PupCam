@@ -1,47 +1,53 @@
 import cv2
+import numpy as np
 import requests
 from datetime import timezone, datetime
 import time
-import json
+import os
 
 API_URL = "http://localhost:8000/events/"
-
-MIN_AREA = 5000  # Adjust for motion sensitivity
-COOLDOWN_SECONDS = 5
+MIN_AREA = 500
+COOLDOWN_SECONDS = 1
 previous_frame = None
-last_motion_time = 0  # Global cooldown timer
+last_motion_time = 0
+motion_writer = None
+motion_frames = 0
+MOTION_CLIP_LENGTH = 60
 
 def send_motion_event_to_backend(event_type, image_url, video_url):
-    payload = {
-        "event_type": event_type,
-        "image_url": image_url,
-        "video_url": video_url,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+
+    payload = {"event_type": event_type,
+               "image_url": image_url,
+               "video_url": video_url,
+               "timestamp": datetime.now(timezone.utc).isoformat()
+               }
     try:
-        print("PAYLOAD SENT:", json.dumps(payload, indent=2))
         response = requests.post(API_URL, json=payload)
-        print("STATUS:", response.status_code)
-        print("RESPONSE:", response.text)
+        print("POST STATUS:", response.status_code)
     except Exception as e:
         print("Failed to send POST:", e)
 
 
 def detect_motion():
-    global previous_frame, last_motion_time
+    global previous_frame, last_motion_time, motion_writer, motion_frames
 
     cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Error: Could not open camera")
-        return
+    # define the codec (still don't get what this is) and create VideoWriter obj
+    fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+    out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 480))
 
-    print("Motion detection started. Press 'q' to quit.")
+    if not cap.isOpened():
+        print("error: could not open cam")
+        exit()
+
+    print("Motion detection started")
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-
+        # operations on the frame
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (21, 21), 0)
         gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
         if previous_frame is None:
@@ -68,25 +74,62 @@ def detect_motion():
 
         # Post only if motion detected, over threshold, and cooldown expired
         current_time = time.time()
+        # if motion is detected, and there is motion happening (like if a person walks across the camera), save that video
         if motion_detected and total_motion_area > MIN_AREA and (current_time - last_motion_time > COOLDOWN_SECONDS):
-            send_motion_event_to_backend(
-                "motion",
-                "https://example.com/image.jpg",
-                "https://example.com/video.mp4"
-            )
+            print("Motion detected, saving video clip...")
+            # Create a new video file for this motion event
+            filename = f"motion_{int(current_time)}.avi"
+            motion_writer = cv2.VideoWriter(filename, fourcc, 20.0, (640, 480))
+            motion_frames = 0
+            # send_motion_event_to_backend(
+            #     "motion",
+            #     "https://example.com/image.jpg",
+            #     "https://example.com/video.mp4"
+            # )
             last_motion_time = current_time
 
-        previous_frame = gray
-        cv2.imshow("Camera", frame)
+        # If currently recording a motion event, write the frame
+        if motion_writer is not None:
+            motion_writer.write(frame)
+            motion_frames += 1
+            # Stop after saving enough frames
+            if motion_frames >= MOTION_CLIP_LENGTH:
+                motion_writer.release()
+                motion_writer = None
 
+        previous_frame = gray
+        frame = cv2.flip(frame, 0)
+        # write the flipped frame
+        out.write(frame)
+
+        cv2.imshow("Camera", frame)
         key = cv2.waitKey(1)
         if key == ord('q'):
-            print("Quitting motion detection")
             break
 
+        previous_frame = gray
+
+    cap.release()
     cap.release()
     cv2.destroyAllWindows()
 
+def play_video_from_db():
+    cap = cv2.VideoCapture('vtest.avi')
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+
+        if not ret:
+            print("can't recieve frame (stream end). exiting")
+            break
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        cv2.imshow('frame', gray)
+        if cv2.waitKey(1) == ord('q'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
+
+    return
 
 if __name__ == "__main__":
     detect_motion()
