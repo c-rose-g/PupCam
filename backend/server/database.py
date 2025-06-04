@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 from server.models.device import Device
 from server.models.user import User
 from server.models.event import Event
-import gridfs
+import certifi
 # from server.models.camera import Camera
 
 env_path = Path(__file__).resolve().parents[1].parents[0].parents[0] / "PupCam/.env"
@@ -25,7 +25,8 @@ if not DB_NAME:
 
 async def init_db():
     global fs
-    client = AsyncIOMotorClient(MONGO_URI)
+    client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=certifi.where())
+
     db = client[DB_NAME]
     fs = AsyncIOMotorGridFSBucket(db)
     # add the rest of the models here
@@ -34,4 +35,4 @@ async def init_db():
 
     except Exception as e:
         print("Beanie init failed:        ", e)
-        raise
+        raise e
