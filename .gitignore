@@ -25,3 +25,6 @@ htmlcov/
 .vscode/
 .idea/
 *.swp
+static/videos/
+static/**/*.avi
+static/**/*.mp4
