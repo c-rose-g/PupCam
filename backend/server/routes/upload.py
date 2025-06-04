@@ -9,3 +9,5 @@ async def upload_video(file: UploadFile = File(...)):
     contents = await file.read()
     video_url = await fs.upload_from_stream(file.filename, contents)
     return JSONResponse({"video_url": str(video_url)})
+
+# /play-latest
