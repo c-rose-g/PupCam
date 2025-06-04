@@ -28,3 +28,4 @@ htmlcov/
 static/videos/
 static/**/*.avi
 static/**/*.mp4
+*.mp4
