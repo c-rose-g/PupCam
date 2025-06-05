@@ -1,56 +1,74 @@
 import cv2
 import numpy as np
 import requests
-from datetime import timezone, datetime
+from datetime import datetime, timezone
 import time
 import os
 import subprocess
 
 API_URL = "http://localhost:8000/events/"
-MIN_AREA = 500
-COOLDOWN_SECONDS = 3
-previous_frame = None
-last_motion_time = 0
-motion_writer = None
-motion_frames = 0
-MOTION_CLIP_LENGTH = 60
-
-
-def convert_avi_to_mp4(source_path, target_path):
-    try:
-        subprocess.run(
-            ["ffmpeg", "-i", source_path, "-vcodec", "libx264", "-crf", "23", target_path],
-            check=True
-        )
-        print(f"Converted {source_path} to {target_path}")
-    except subprocess.CalledProcessError:
-        print(f"Failed to convert {source_path}")
 
 
 def send_motion_event_to_backend(event_type, image_url, video_url):
 
     payload = {"event_type": event_type,
+               "timestamp": datetime.now(timezone.utc).isoformat(),
                "image_url": image_url,
-               "video_url": video_url,
-               "timestamp": datetime.now(timezone.utc).isoformat()
+               "video_url": video_url
                }
+
     try:
         response = requests.post(API_URL, json=payload)
-        print("POST STATUS:", response.status_code)
+        print(f"--- POST STATUS: {response.status_code} --- \n")
+
+        if response.status_code == 200:
+            print("--- Video sent to backend ---\n")
+
     except Exception as e:
         print("Failed to send POST:", e)
 
 
+def convert_avi_to_mp4(input_path, output_path):
+    if os.path.exists(input_path) and os.path.getsize(input_path) > 1000:
+        command = [
+            'ffmpeg',
+            '-analyzeduration', '10000000',
+            '-probesize', '10000000',
+            '-i', input_path,
+            '-pix_fmt', 'yuv420p',
+            output_path
+        ]
+        try:
+            subprocess.run(command, check=True)
+            print(f"--- Converted {input_path} to {output_path} ---\n")
+        except subprocess.CalledProcessError as e:
+            print(f"Conversion failed for {input_path}:", e)
+    else:
+        print(f"File size: {os.path.getsize(input_path)} bytes")
+        print("VI file too small or does not exist.")
+
+
 def detect_motion():
-    global previous_frame, last_motion_time, motion_writer, motion_frames
+    MIN_AREA = 5000
+    video_path = ""
+    previous_frame = None
+    motion_writer = None
+    motion_timer = 0
+    motion_frames = 0
+    motion_hold_frames = 30
 
     cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
-        print("error: could not open cam")
+        print("Error: Could not open video stream.")
         exit()
 
+    # _, previous_frame = cap.read()
+    # previous_frame = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
+    # previous_frame = cv2.GaussianBlur(previous_frame, (21, 21), 0)
+
     print("***** Motion detection started *****")
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -61,89 +79,103 @@ def detect_motion():
         gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
         if previous_frame is None:
+            print(f"--- no movement detected ---\n")
             previous_frame = gray
             continue
 
-        frame_delta = cv2.absdiff(previous_frame, gray)
-        thresh = cv2.threshold(frame_delta, 50, 255, cv2.THRESH_BINARY)[1]
+        frame_diff = cv2.absdiff(previous_frame, gray)
+        thresh = cv2.threshold(frame_diff, 50, 255, cv2.THRESH_BINARY)[1]
         thresh = cv2.dilate(thresh, None, iterations=2)
 
-        contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        motion_detected = False
-        total_motion_area = 0
+        motion_detected = any(cv2.contourArea(c) > 1000 for c in contours)
+        # motion_detected = False
+        # total_motion_area = 0
 
+        # draw rectangles
+        # for contour in contours:
+        #     area = cv2.contourArea(contour)
+        #     if area < MIN_AREA:
+        #         continue
+
+        #     # motion_detected = True
+        #     total_motion_area += area
+        #     (x, y, w, h) = cv2.boundingRect(contour)
+        #     cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
         for contour in contours:
-            area = cv2.contourArea(contour)
-            if area < MIN_AREA:
+            if cv2.contourArea(contour) < 1000:
                 continue
-            motion_detected = True
-            total_motion_area += area
             (x, y, w, h) = cv2.boundingRect(contour)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        # Post only if motion detected, over threshold, and cooldown expired
-        current_time = time.time()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # Create a new video file
-        filename = f"motion_{int(timestamp)}.avi"
-        # create a snapshot image
-        image_filename = f"frame_{timestamp}.jpg"
-        # if motion is detected, and there is motion happening (like if a person walks across the camera), save that video
-        if motion_detected and total_motion_area > MIN_AREA and (current_time - last_motion_time > COOLDOWN_SECONDS):
-            print("\nMOTION DETECTED!!!")
+        if motion_detected:
+            motion_timer = motion_hold_frames
+            print(f"\nMOTION DETECTED!!!\n")
             os.system("afplay assets/bark.wav")
-            fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
-            video_path = os.path.join("static", "videos", filename)
-            image_path = os.path.join("static", "images", image_filename)
+        if motion_timer > 0:
+            # frame_resized = cv2.resize(frame, (640, 480))
+            # motion_writer.write(frame_resized)
+            # print("-- video resizing --\n")
+            # motion_frames += 1
+            # motion_timer -= 1
 
-            motion_writer = cv2.VideoWriter(video_path, fourcc, 20.0, (640, 480))
-            cv2.imwrite(image_path, frame)
-            motion_frames = 0
-            last_motion_time = current_time
+            if motion_writer is None:
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                video_dir = "static/videos"
+                image_dir = "static/images"
+                os.makedirs(video_dir, exist_ok=True)
+                os.makedirs(image_dir, exist_ok=True)
+                video_path = os.path.join(video_dir, f"motion_{timestamp}.avi")
+                image_path = os.path.join(image_dir, f"image_{timestamp}.jpg")
+                print("--- image and video created ---")
+                fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+                frame_resized = cv2.resize(frame, (640, 480))
+                motion_writer = cv2.VideoWriter(
+                    video_path, fourcc, 20.0, (640, 480))
+                cv2.imwrite(image_path, frame)
+                motion_frames = 0
+                print(f"--- Recording motion to {video_path} ----")
 
-            send_motion_event_to_backend(
-                "motion",
-                f"http://localhost:8000/static/images/{image_filename}",
-                f"http://localhost:8000/static/videos/{filename}"
-            )
-
-        # If currently recording a motion event, write the frame
-        if motion_writer is not None:
-            print(f"- Recording motion frame: {motion_frames} to {video_path}")
-            motion_writer.write(frame)
+            frame_resized = cv2.resize(frame, (640, 480))
+            motion_writer.write(frame_resized)
+            # print("-- video resizing --\n")
             motion_frames += 1
+            motion_timer -= 1
 
-            # Stop after saving enough frames
-            # if motion_frames >= MOTION_CLIP_LENGTH:
-            #     print("* Recording saved * \n")
-            #     motion_writer.release()
-            #     motion_writer = None
-            #     mp4_path = os.path.join("static", "videos", filename.replace(".avi", ".mp4"))
-            #     convert_avi_to_mp4(video_path, mp4_path)
-            if motion_writer is not None and motion_frames > 0:
-                print("* Recording saved * \n")
+            if motion_frames >= 20 and motion_timer == 0:
                 motion_writer.release()
+                # print("--- Recording saved ---\n")
+                time.sleep(3)
+                # print("--- time to sleep for 3 seconds --- \n")
+                avi_path = video_path
+                mp4_path = avi_path.replace(".avi", ".mp4")
+                convert_avi_to_mp4(avi_path, mp4_path)
+                # print("--- video from converted to mp4 --- \n")
+                if os.path.exists(mp4_path):
+                    os.remove(avi_path)
+                    # print(f"--- Delected original avi: {avi_path} ---\n")
+
+                send_motion_event_to_backend(
+                    event_type="motion",
+                    image_url= f"http://localhost:8000/{image_path}",
+                    video_url=f"http://localhost:8000/{mp4_path}"
+                )
+
                 motion_writer = None
-
-                if os.path.getsize(video_path) > 0:
-                    mp4_path = video_path.replace(".avi", ".mp4")
-
-            convert_avi_to_mp4(video_path, mp4_path)
-
-        frame = cv2.flip(frame, 0)
 
         cv2.imshow("Camera", frame)
         key = cv2.waitKey(1)
         if key == ord('q'):
             break
-
         previous_frame = gray
 
     print("\n***** Motion Detection ended *****")
     cap.release()
     cv2.destroyAllWindows()
+
 
 def play_video_from_db():
     video_folder = os.path.join("static", "videos")
@@ -173,7 +205,7 @@ def play_video_from_db():
         return
 
     selected_video = os.path.join(video_folder, videos[choice])
-    print(f"\nPlaying: {selected_video}")
+    print(f"video is now playing...")
 
     cap = cv2.VideoCapture(selected_video)
 
@@ -184,8 +216,15 @@ def play_video_from_db():
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
-            print("error or video is over.")
-            break
+            print(f"{videos[choice]} ended.")
+            choice = input(
+                "Type 'cam' for motion detection or 'vid' to play another video or exit: ").strip().lower()
+            if choice == 'cam':
+                detect_motion()
+            elif choice == 'vid':
+                play_video_from_db()
+            else:
+                break
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         cv2.imshow("Video Playback", gray)
@@ -197,10 +236,11 @@ def play_video_from_db():
 
 
 if __name__ == "__main__":
-    choice = input("Type '1' for motion detection or return to play a video: ").strip().lower()
-    if choice == '1':
+    choice = input(
+        "Type 'cam' for motion detection or 'vid' to play a video: ").strip().lower()
+    if choice == 'cam':
         detect_motion()
-    elif choice == chr(' '):
+    elif choice == 'vid':
         play_video_from_db()
     else:
         print("NOOOOOOO.")
