@@ -9,13 +9,13 @@ import subprocess
 API_URL = "http://localhost:8000/events/"
 
 
-def send_motion_event_to_backend(event_type, image_url, video_url):
-
-    payload = {"event_type": event_type,
-               "timestamp": datetime.now(timezone.utc).isoformat(),
-               "image_url": image_url,
-               "video_url": video_url
-               }
+def save_motion(event_type, image_url, video_url):
+    payload = {
+        "event_type": event_type,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "image_url": image_url,
+        "video_url": video_url
+    }
 
     try:
         response = requests.post(API_URL, json=payload)
@@ -28,7 +28,7 @@ def send_motion_event_to_backend(event_type, image_url, video_url):
         print("Failed to send POST:", e)
 
 
-def convert_avi_to_mp4(input_path, output_path):
+def convert_motion(input_path, output_path):
     if os.path.exists(input_path) and os.path.getsize(input_path) > 1000:
         command = [
             'ffmpeg',
@@ -44,12 +44,11 @@ def convert_avi_to_mp4(input_path, output_path):
         except subprocess.CalledProcessError as e:
             print(f"Conversion failed for {input_path}:", e)
     else:
-        print(f"File size: {os.path.getsize(input_path)} bytes")
-        print("VI file too small or does not exist.")
+        print(
+            f"File size: {os.path.getsize(input_path)} bytes. \n VI file too small or does not exist.")
 
 
 def detect_motion():
-    MIN_AREA = 5000
     video_path = ""
     previous_frame = None
     motion_writer = None
@@ -62,10 +61,6 @@ def detect_motion():
     if not cap.isOpened():
         print("Error: Could not open video stream.")
         exit()
-
-    # _, previous_frame = cap.read()
-    # previous_frame = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
-    # previous_frame = cv2.GaussianBlur(previous_frame, (21, 21), 0)
 
     print("***** Motion detection started *****")
 
@@ -91,19 +86,7 @@ def detect_motion():
             thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         motion_detected = any(cv2.contourArea(c) > 1000 for c in contours)
-        # motion_detected = False
-        # total_motion_area = 0
 
-        # draw rectangles
-        # for contour in contours:
-        #     area = cv2.contourArea(contour)
-        #     if area < MIN_AREA:
-        #         continue
-
-        #     # motion_detected = True
-        #     total_motion_area += area
-        #     (x, y, w, h) = cv2.boundingRect(contour)
-        #     cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
         for contour in contours:
             if cv2.contourArea(contour) < 1000:
                 continue
@@ -113,14 +96,9 @@ def detect_motion():
         if motion_detected:
             motion_timer = motion_hold_frames
             print(f"\nMOTION DETECTED!!!\n")
-            os.system("afplay assets/bark.wav")
+            # os.system("afplay assets/bark.wav")
 
         if motion_timer > 0:
-            # frame_resized = cv2.resize(frame, (640, 480))
-            # motion_writer.write(frame_resized)
-            # print("-- video resizing --\n")
-            # motion_frames += 1
-            # motion_timer -= 1
 
             if motion_writer is None:
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -141,26 +119,24 @@ def detect_motion():
 
             frame_resized = cv2.resize(frame, (640, 480))
             motion_writer.write(frame_resized)
-            # print("-- video resizing --\n")
+
             motion_frames += 1
             motion_timer -= 1
 
             if motion_frames >= 20 and motion_timer == 0:
                 motion_writer.release()
-                # print("--- Recording saved ---\n")
                 time.sleep(3)
-                # print("--- time to sleep for 3 seconds --- \n")
+
                 avi_path = video_path
                 mp4_path = avi_path.replace(".avi", ".mp4")
-                convert_avi_to_mp4(avi_path, mp4_path)
-                # print("--- video from converted to mp4 --- \n")
+                convert_motion(avi_path, mp4_path)
+
                 if os.path.exists(mp4_path):
                     os.remove(avi_path)
-                    # print(f"--- Delected original avi: {avi_path} ---\n")
 
-                send_motion_event_to_backend(
+                save_motion(
                     event_type="motion",
-                    image_url= f"http://localhost:8000/{image_path}",
+                    image_url=f"http://localhost:8000/{image_path}",
                     video_url=f"http://localhost:8000/{mp4_path}"
                 )
 
@@ -177,7 +153,7 @@ def detect_motion():
     cv2.destroyAllWindows()
 
 
-def play_video_from_db():
+def play_motion():
     video_folder = os.path.join("static", "videos")
 
     # Get sorted list of .avi files (newest first)
@@ -222,7 +198,7 @@ def play_video_from_db():
             if choice == 'cam':
                 detect_motion()
             elif choice == 'vid':
-                play_video_from_db()
+                play_motion()
             else:
                 break
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -241,6 +217,6 @@ if __name__ == "__main__":
     if choice == 'cam':
         detect_motion()
     elif choice == 'vid':
-        play_video_from_db()
+        play_motion()
     else:
         print("NOOOOOOO.")
