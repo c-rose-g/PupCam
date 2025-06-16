@@ -30,3 +30,4 @@ static/images/
 static/**/*.avi
 static/**/*.mp4
 *.mp4
+motion_detector_patched.py
